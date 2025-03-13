@@ -1,12 +1,9 @@
-# NO TOCAR / NOT MODIFIED ME ##
 CC=gcc
-FLAGS=-Wno-implicit-function-declaration
-CFLAGS=-I.
+FLAGS=-02 -Wall -Wextra -Werror -Wno-implicit-function-declaration
+CFLAGS=-I./src/inc
 ###############################
 
-# MODIFIED ME ##
-
-OBJ = scripter.o 
+OBJ = scripter.o
 
 all: scripter
 

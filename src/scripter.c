@@ -13,8 +13,8 @@ const int max_commands = 10;
 #define max_args 15
 
 /* VARS TO BE USED FOR THE STUDENTS */
-char * argvv[max_args];
-char * filev[max_redirections];
+char* argvv[max_args];
+char* filev[max_redirections];
 int background = 0; 
 
 /**
