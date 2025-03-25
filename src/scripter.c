@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 /* CONST VARS */
 const int max_line = 1024;
@@ -111,14 +112,36 @@ int procesar_linea(char *linea) {
     return num_comandos;
 }
 
+int parse_file(const char filename[], char* buffer) {
+
+    // Open file
+    int filefd;
+    if ((filefd = open(filename, O_RDWR)) < 0) {
+        perror("Error opening scripting file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Define buffer with size from file
+    struct stat fd_st;
+    if (fstat(filefd, &fd_st) < 0)
+    {
+        perror("Error doing stat to file");
+        exit(EXIT_FAILURE);
+    }
+    // Buscar como alojar la memoria para poder devolver el contenido del archivo al puntero del parametro
+    char* filebuff = malloc((fd_st.st_size / sizeof(char)) + 1);
+
+    // Finally transfer content from file
+
+
+    return 0;
+}
+
 
 int main(int argc, char *argv[]) {
 
-    /* STUDENTS CODE MUST BE HERE */
-    char example_line[] = "ls -l | grep scripter | wc -l > redir_out.txt &";
-    int n_commands = procesar_linea(example_line);
 
-    printf("HOLA MUNDO");
+
     
     return 0;
 }
