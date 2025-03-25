@@ -1,17 +1,22 @@
 CC=gcc
-FLAGS=-02 -Wall -Wextra -Werror -Wno-implicit-function-declaration
-CFLAGS=-I./src/inc
-###############################
+CFLAGS= -Wall -Wextra -Werror -Wno-implicit-function-declaration
+SRC_DIR = ./src
+BUILD_DIR = ./build
 
-OBJ = scripter.o
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
 
-all: scripter
+all: $(BUILD_DIR)/mygrep $(BUILD_DIR)/scripter
 
-%.o: %.c 
-	$(CC) $(FLAGS) -c -o $@ $< $(CFLAGS)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-scripter: $(OBJ)
-	$(CC) $(FLAGS) -L. -o $@ $< $(LIBS)
+$(BUILD_DIR)/mygrep:  $(BUILD_DIR)/mygrep.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(BUILD_DIR)/scripter: $(BUILD_DIR)/scripter.o
+	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
-	rm -f ./scripter.o ./scripter
+	rm -rf $(BUILD_DIR)
