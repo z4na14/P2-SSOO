@@ -8,14 +8,14 @@
 #include <sys/stat.h>
 
 /* CONST VARS */
-const int max_line = 1024;
-const int max_commands = 10;
-#define max_redirections 3 //stdin, stdout, stderr
-#define max_args 15
+const int MAX_LINE = 1024;
+const int MAX_COMMANDS = 10;
+#define MAX_REDIRECTIONS 3 //stdin, stdout, stderr
+#define MAX_ARGS 15
 
 /* VARS TO BE USED FOR THE STUDENTS */
-char* argvv[max_args];
-char* filev[max_redirections];
+char* argvv[MAX_ARGS];
+char* filev[MAX_REDIRECTIONS];
 int background = 0;
 
 
@@ -75,8 +75,8 @@ void procesar_redirecciones(char *args[]) {
  * background -- 0 means foreground; 1 background.
  */
 int procesar_linea(char *linea) {
-    char *comandos[max_commands];
-    int num_comandos = tokenizar_linea(linea, "|", comandos, max_commands);
+    char *comandos[MAX_COMMANDS];
+    int num_comandos = tokenizar_linea(linea, "|", comandos, MAX_COMMANDS);
 
     //Check if background is indicated
     if (strchr(comandos[num_comandos - 1], '&')) {
@@ -88,14 +88,14 @@ int procesar_linea(char *linea) {
 
     //Finish processing
     for (int i = 0; i < num_comandos; i++) {
-        int args_count = tokenizar_linea(comandos[i], " \t\n", argvv, max_args);
+        int args_count = tokenizar_linea(comandos[i], " \t\n", argvv, MAX_ARGS);
         procesar_redirecciones(argvv);
 
         /********* This piece of code prints the command, args, redirections and background. **********/
         /*********************** REMOVE BEFORE THE SUBMISSION *****************************************/
         /*********************** IMPLEMENT YOUR CODE FOR PROCESSES MANAGEMENT HERE ********************/
         /*printf("Comando = %s\n", argvv[0]);
-        for(int arg = 1; arg < max_args; arg++)
+        for(int arg = 1; arg < MAX_ARGS; arg++)
             if(argvv[arg] != NULL)
                 printf("Args = %s\n", argvv[arg]); 
                 
@@ -112,7 +112,15 @@ int procesar_linea(char *linea) {
     return num_comandos;
 }
 
-int parse_file(const char filename[], char* buffer) {
+
+/**
+ * Function used to parse the input file and return the contents inside a buffer. \0 delimits
+ * are also added when processing it.
+ * filename -- Filename string where the commands are stored.
+ * commands_ptr -- Buffer pointer where to store the contents of the file.
+ * @returns -- Size of the buffer.
+ */
+int parse_file(const char filename[], char* commands_ptr[]) {
 
     // Open file
     int filefd;
@@ -123,25 +131,39 @@ int parse_file(const char filename[], char* buffer) {
 
     // Define buffer with size from file
     struct stat fd_st;
-    if (fstat(filefd, &fd_st) < 0)
-    {
+    if (fstat(filefd, &fd_st) < 0) {
         perror("Error doing stat to file");
         exit(EXIT_FAILURE);
     }
-    // Buscar como alojar la memoria para poder devolver el contenido del archivo al puntero del parametro
-    char* filebuff = malloc((fd_st.st_size / sizeof(char)) + 1);
 
-    // Finally transfer content from file
+    // Read contents of the file
+    unsigned int buffer_size = (fd_st.st_size / sizeof(char)) + 1;
+    char* filebuff[buffer_size];
+    if (read(filefd, filebuff, buffer_size) < 0) {
+        perror("Error reading file");
+        exit(EXIT_FAILURE);
+    }
 
+    // Separate lines into elements of the parameter array
+    tokenizar_linea(filebuff, "\n", commands_ptr, MAX_COMMANDS);
 
-    return 0;
+    // Check if the script has the header
+    if (strcmp(commands_ptr[0], "## Script de SSOO") != 0) {
+        fprintf(stderr, "Script doesn't follow convention\n");
+    }
+
+    return (int) buffer_size;
 }
 
 
 int main(int argc, char *argv[]) {
 
-
-
+    // Buffer pointer where to store the contents of the file
+    char commands_ptr[MAX_COMMANDS][MAX_LINE];
+    if (parse_file(argv[1], commands_ptr) <= 0) {
+        fprintf(stderr, "Script file is empty\n");
+        exit(EXIT_FAILURE);
+    }
     
     return 0;
 }
