@@ -164,6 +164,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Script file is empty\n");
         exit(EXIT_FAILURE);
     }
-    
+
+    // TOMAR EN CUENTA QUE EL COMENTARIO ES EL PRIMER "COMANDO"
+    // Retrieve the number of commands and execute them inside the loop
+    int num_of_commands = sizeof(commands_ptr) / sizeof(commands_ptr[0]);
+    for (int i = 1; i < num_of_commands; i++) {
+        procesar_linea(commands_ptr[i]);
+    }
+
     return 0;
 }
