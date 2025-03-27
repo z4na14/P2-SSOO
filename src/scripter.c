@@ -86,27 +86,40 @@ void procesar_redirecciones(char *args[]) {
  * background -- 0 means foreground; 1 background.
  */
 int procesar_linea(char *linea) {
-    char *comandos[MAX_COMMANDS];
+    char *comandos[MAX_COMMANDS]; 
     int num_comandos = tokenizar_linea(linea, "|", comandos, MAX_COMMANDS);
 
-    //Check if background is indicated
-    if (strchr(comandos[num_comandos - 1], '&')) {
+    if (num_comandos == 0){
+        return 0;  
+        }
+    
+    background = 0;  
+
+   
+    char *pos = strchr(comandos[num_comandos - 1], '&');
+    if (pos) {
         background = 1;
-        char *pos = strchr(comandos[num_comandos - 1], '&');
-        //remove character 
         *pos = '\0';
     }
 
-    //Finish processing
+    // Process each command
     for (int i = 0; i < num_comandos; i++) {
-        int args_count = tokenizar_linea(comandos[i], " \t\n", argvv, MAX_ARGS);
-        procesar_redirecciones(argvv);
+        char *args[MAX_ARGS];  
+        int args_count = tokenizar_linea(comandos[i], " \t\n", args, MAX_ARGS);
+        
+        if (args_count == 0) continue; 
 
+        for (int j = 0; j < args_count; j++) {
+            argvv[j] = args[j];
+        }
 
+        procesar_redirecciones(argvv);  
     }
 
     return num_comandos;
 }
+
+
 
 
 /**
