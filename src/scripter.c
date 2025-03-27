@@ -89,13 +89,10 @@ int procesar_linea(char *linea) {
     char *comandos[MAX_COMMANDS]; 
     int num_comandos = tokenizar_linea(linea, "|", comandos, MAX_COMMANDS);
 
-    if (num_comandos == 0){
-        return 0;  
-        }
-    
-    background = 0;  
+    if (num_comandos == 0) {
+        return 0;
+    }
 
-   
     char *pos = strchr(comandos[num_comandos - 1], '&');
     if (pos) {
         background = 1;
@@ -113,7 +110,7 @@ int procesar_linea(char *linea) {
             argvv[j] = args[j];
         }
 
-        procesar_redirecciones(argvv);  
+        procesar_redirecciones(argvv);
     }
 
     return num_comandos;
@@ -191,8 +188,7 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        puts(commands_ptr[i]);
-        //procesar_linea(commands_ptr[i]);
+        procesar_linea(commands_ptr[i]);
     }
 
     return 0;
