@@ -162,7 +162,10 @@ int procesar_linea(char *linea) {
                     waitpid(pid1, NULL, 0);
                 }
                 if (i == num_comandos - 1) {
-
+                    for (int k = 0; k < num_comandos; k++) {
+                        close(array_pipes[k][0]);
+                        close(array_pipes[k][1]);
+                    }
                 }
         }
 
