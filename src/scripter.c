@@ -101,22 +101,56 @@ int procesar_linea(char *linea) {
 
     // Process each command
     for (int i = 0; i < num_comandos; i++) {
-        char *args[MAX_ARGS];  
+        char *args[MAX_ARGS];
         int args_count = tokenizar_linea(comandos[i], " \t\n", args, MAX_ARGS);
-        
-        if (args_count == 0) continue; 
+
+        if (args_count == 0) continue;
 
         for (int j = 0; j < args_count; j++) {
             argvv[j] = args[j];
         }
-
         procesar_redirecciones(argvv);
+
+        if (filev[0] != NULL) {
+            int fd = open(filev[0], O_RDONLY);
+            if (fd == -1) {
+                perror("Error while opening file");
+                exit(-1);
+            }
+            dup2(fd, STDIN_FILENO);
+            close(fd);
+        }
+
+        if (filev[1] != NULL) {
+            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd == -1) {
+                perror("Error while opening file");
+                exit(-1);
+            }
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+        }
+
+        if (filev[2] != NULL) {
+            int fd = open(filev[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd == -1) {
+                perror("Error while opening file");
+                exit(-1);
+            }
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+        }
+
+        int ** array_pipes[num_comandos][2];
+        for (int j = 0; j < num_comandos; j++) {
+
+
+        }
+
     }
 
     return num_comandos;
 }
-
-
 
 
 /**
