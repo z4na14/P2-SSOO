@@ -85,28 +85,34 @@ void procesar_redirecciones(char *args[]) {
  * filev -- files for redirections. NULL value means no redirection. 
  * background -- 0 means foreground; 1 background.
  */
-int procesar_linea(char *linea) {
-
+int procesar_linea(char *linea)
+{
+    // Divide the commands from the line
     char *comandos[MAX_COMMANDS]; 
     int num_comandos = tokenizar_linea(linea, "|", comandos, MAX_COMMANDS);
 
+    // If no commands are found, exit the program
     if (num_comandos == 0) {
         return 0;
     }
 
-    int array_pipes[num_comandos][2];
-    for (int j = 0; j < num_comandos; j++) {
+    // Generate the pipes for interprocess communitacion between the processes
+    // where the commands are going to be ran
+    int array_pipes[num_comandos - 1][2];
+    for (int j = 0; j < num_comandos - 1; j++) {
         if (pipe(array_pipes[j]) == -1) {
             perror("Error while creating pipe");
             exit(-1);
-        };
+        }
+    }
 
-
+    // Look for the background execution delimiter
     char *pos = strchr(comandos[num_comandos - 1], '&');
     if (pos) {
         background = 1;
         *pos = '\0';
     }
+
     // Process each command
     for (int i = 0; i < num_comandos; i++) {
         int pid1 = fork();
@@ -162,12 +168,9 @@ int procesar_linea(char *linea) {
                     waitpid(pid1, NULL, 0);
                 }
                 if (i == num_comandos - 1) {
-
+                    
                 }
-        }
-
-        }
-
+            }
     }
 
     return num_comandos;
@@ -252,6 +255,11 @@ int parse_file(const char filename[], char*** commands_ptr) {
 
 
 int main(int argc, char *argv[]) {
+
+    if (argc != 2) {
+        fprintf(stderr, "Invalid number of arguments");
+        exit(EXIT_FAILURE);
+    }
 
     // Buffer pointer where to store the contents of the file
     char** commands_ptr;
