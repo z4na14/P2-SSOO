@@ -27,10 +27,21 @@ int background = 0;
 int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
     int i = 0;
     char *token = strtok(linea, delim);
-    while (token != NULL && i < max_tokens - 1) {
-        tokens[i++] = token;
-        token = strtok(NULL, delim);
+
+    if (max_tokens == 0) {
+        while (token != NULL) {
+            tokens[i++] = token;
+            token = strtok(NULL, delim);
+        }
     }
+
+    else {
+        while (token != NULL && i < max_tokens) {
+            tokens[i++] = token;
+            token = strtok(NULL, delim);
+        }
+    }
+
     tokens[i] = NULL;
     return i;
 }
@@ -105,7 +116,7 @@ int procesar_linea(char *linea) {
  * commands_ptr -- Buffer pointer where to store the contents of the file.
  * @returns -- Size of the buffer.
  */
-int parse_file(const char filename[], char* commands_ptr[]) {
+int parse_file(const char filename[], char*** commands_ptr) {
 
     // Open file
     int filefd;
@@ -121,40 +132,54 @@ int parse_file(const char filename[], char* commands_ptr[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Read contents of the file
+    // Allocate buffer dynamically
     unsigned int buffer_size = (fd_st.st_size / sizeof(char)) + 1;
-    char* filebuff[buffer_size];
+    char *filebuff = (char*) malloc(buffer_size);
+    if (!filebuff) {
+        perror("Malloc failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Read contents from file
     if (read(filefd, filebuff, buffer_size) < 0) {
         perror("Error reading file");
         exit(EXIT_FAILURE);
     }
 
+    *commands_ptr = (char**) malloc(buffer_size);
+    memset(*commands_ptr, 0, buffer_size);
+
     // Separate lines into elements of the parameter array
-    tokenizar_linea(filebuff, "\n", commands_ptr, MAX_COMMANDS);
+    int num_of_lines = tokenizar_linea(filebuff, "\n", *commands_ptr, 0);
 
     // Check if the script has the header
-    if (strcmp(commands_ptr[0], "## Script de SSOO") != 0) {
+    if (strcmp((*commands_ptr)[0], "## Script de SSOO") != 0) {
         fprintf(stderr, "Script doesn't follow convention\n");
     }
 
-    return (int) buffer_size;
+    return num_of_lines;
 }
 
 
 int main(int argc, char *argv[]) {
 
     // Buffer pointer where to store the contents of the file
-    char commands_ptr[MAX_COMMANDS][MAX_LINE];
-    if (parse_file(argv[1], commands_ptr) <= 0) {
+    char** commands_ptr;
+    int num_of_commands = parse_file(argv[1], &commands_ptr);
+    if (num_of_commands <= 0) {
         fprintf(stderr, "Script file is empty\n");
         exit(EXIT_FAILURE);
     }
 
-    // TOMAR EN CUENTA QUE EL COMENTARIO ES EL PRIMER "COMANDO"
-    // Retrieve the number of commands and execute them inside the loop
-    int num_of_commands = sizeof(commands_ptr) / sizeof(commands_ptr[0]);
+    // Puta madre, esta wea como la limitamos
+    // TODO: Kill myself
     for (int i = 1; i < num_of_commands; i++) {
-        procesar_linea(commands_ptr[i]);
+        if (strcmp(commands_ptr[i], "") == 0) {
+            break;
+        }
+
+        puts(commands_ptr[i]);
+        //procesar_linea(commands_ptr[i]);
     }
 
     return 0;
