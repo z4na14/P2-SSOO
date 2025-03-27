@@ -18,7 +18,7 @@ char* argvv[MAX_ARGS];
 char* filev[MAX_REDIRECTIONS];
 int background = 0;
 
-
+void command_pipes(int pipes_array[][2], int num_comandos, int command);
 
 /**
  * This function splits a char* line into different tokens based on a given character
@@ -86,6 +86,7 @@ void procesar_redirecciones(char *args[]) {
  * background -- 0 means foreground; 1 background.
  */
 int procesar_linea(char *linea) {
+
     char *comandos[MAX_COMMANDS]; 
     int num_comandos = tokenizar_linea(linea, "|", comandos, MAX_COMMANDS);
 
@@ -153,9 +154,15 @@ int procesar_linea(char *linea) {
                     dup2(fd, STDOUT_FILENO);
                     close(fd);
                 }
+                command_pipes(array_pipes, num_comandos, i);
+                execvp(argvv[0], argvv);
+
             default:
                 if (background == 1) {
                     waitpid(pid1, NULL, 0);
+                }
+                if (i == num_comandos - 1) {
+
                 }
         }
 
@@ -164,6 +171,31 @@ int procesar_linea(char *linea) {
     }
 
     return num_comandos;
+}
+
+void command_pipes(int pipes_array[][2], int num_comandos, int command) {
+    if (command == 0) {
+        dup2(pipes_array[0][1], STDOUT_FILENO);
+        close(pipes_array[0][0]);
+        close(pipes_array[0][1]);
+    }
+
+    else if (command == num_comandos - 1) {
+        dup2(pipes_array[num_comandos - 1][0], STDIN_FILENO);
+        close(pipes_array[num_comandos - 1][0]);
+        close(pipes_array[num_comandos - 1][1]);
+    }
+
+    else {
+        dup2(pipes_array[command - 1][0], STDIN_FILENO);
+        dup2(pipes_array[command][1], STDOUT_FILENO);
+        close(pipes_array[command - 1][0]);
+        close(pipes_array[command - 1][1]);
+        close(pipes_array[command][0]);
+        close(pipes_array[command][1]);
+    }
+
+
 }
 
 
