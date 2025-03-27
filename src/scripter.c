@@ -15,9 +15,16 @@ const int MAX_COMMANDS = 10;
 #define MAX_ARGS 15
 
 /* VARS TO BE USED FOR THE STUDENTS */
-char* argvv[MAX_ARGS];
-char* filev[MAX_REDIRECTIONS];
+char *argvv[MAX_ARGS];
+char *filev[MAX_REDIRECTIONS];
 int background = 0;
+
+// Used to store the information of each command inside a line
+typedef struct {
+    char *args[MAX_ARGS];
+    int arg_count = 0;
+    char *stderr_redirection = NULL;
+} command_t;
 
 
 
@@ -27,7 +34,7 @@ int background = 0;
  */
 int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
     int i = 0;
-    char* linea_copy = strdup(linea);
+    char *linea_copy = strdup(linea);
     char *token = strtok(linea_copy, delim);
 
     if (max_tokens == 0) {
@@ -56,35 +63,35 @@ int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
  * filev[1] for STDOUT
  * filev[2] for STDERR
  */
-void procesar_redirecciones(char *args) {
+void procesar_redirecciones(int num_commands, command_t **commands) {
     //initialization for every command
     filev[0] = NULL;
     filev[1] = NULL;
     filev[2] = NULL;
+    
+    for (int i = 0; i < num_commands; i++) {
+        for (int j = 0; j < MAX_ARGS; j++) {
+            if (commands[i] -> args == NULL) {
+                break;
+            }
 
-    // TODO: Cambiar el numero de tokens
-    
-    // Create array where tokens are going to be stored
-    char* tokens[20] = {0};
-    
-    // Divide the line of args into spaces
-    tokenizar_linea(args, " \t\n", tokens, 0);
-    
-    //Store the pointer to the filename if needed.
-    //tokens[i] set to NULL once redirection is processed
-    for (int i = 0; i < 20; i++) {
-        if (strcmp(tokens[i], "<") == 0) {
-            filev[0] = tokens[i+1];
-            tokens[i] = NULL;
-            tokens[i + 1] = NULL;
-        } else if (strcmp(tokens[i], ">") == 0) {
-            filev[1] = tokens[i+1];
-            tokens[i] = NULL;
-            tokens[i + 1] = NULL;
-        } else if (strcmp(tokens[i], "!>") == 0) {
-            filev[2] = tokens[i+1];
-            tokens[i] = NULL; 
-            tokens[i + 1] = NULL;
+            if (strcmp(commands[i] -> args[j], "<") == 0 && (i == num_commands - 1)) {
+                filev[0] = commands[i] -> args[j + 1];
+                commands[i] -> args[j] = NULL;
+                commands[i] -> args[j + 1] = NULL;
+            } else if (strcmp(commands[i] -> args[j], ">") == 0 && (i == num_commands - 1)) {
+                filev[1] = commands[i] -> args[j + 1];
+                commands[i] -> args[j] = NULL;
+                commands[i] -> args[j + 1] = NULL;
+            } else if (strcmp(commands[i] -> args[j], "!>") == 0) {
+                // Add placeholder so NULL checks return false
+                *filev[2] = '1';
+                // For every stderr redirection found, add to the index
+                // of the corresponding command
+                commands[i] -> stderr_redirection = commands[i] -> args[j + 1];
+                commands[i] -> args[j] = NULL;
+                commands[i] -> args[j + 1] = NULL;
+            }
         }
     }
 }
@@ -95,26 +102,61 @@ void procesar_redirecciones(char *args) {
  * num_comandos -- number of commands from current line
  * command -- index of executing command
  */
-void command_pipes(int pipes_array[][2], int num_comandos, int command) {
+void command_pipes(int pipes_array[][2], int num_comandos, int command, char* stderr_redirection) {
     if (command == 0) {
+        // Redirect input of the first command
+        if (filev[0] != NULL) {
+            int fd = open(filev[0], O_RDONLY);
+            if (fd == -1) {
+                perror("Error while opening STDIN file");
+                exit(-1);
+            }
+            dup2(fd, STDIN_FILENO);
+            close(fd);
+        }
+
+        // Redirect output to the pipe of the following command
         dup2(pipes_array[0][1], STDOUT_FILENO);
         close(pipes_array[0][0]);
         close(pipes_array[0][1]);
     }
 
     else if (command == num_comandos - 1) {
+        // Redirect output of the last command
+        if (filev[1] != NULL) {
+            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd == -1) {
+                perror("Error while opening STDOUT file");
+                exit(-1);
+            }
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+        }
+
+        // Redirect input from the lasts command
         dup2(pipes_array[num_comandos - 1][0], STDIN_FILENO);
         close(pipes_array[num_comandos - 1][0]);
         close(pipes_array[num_comandos - 1][1]);
     }
 
     else {
+        // Redirect input from the previous command and output to the following
         dup2(pipes_array[command - 1][0], STDIN_FILENO);
         dup2(pipes_array[command][1], STDOUT_FILENO);
         close(pipes_array[command - 1][0]);
         close(pipes_array[command - 1][1]);
         close(pipes_array[command][0]);
         close(pipes_array[command][1]);
+    }
+
+    if (filev[2] != NULL && stderr_redirection != NULL) {
+        int fd = open(stderr_redirection, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd == -1) {
+            perror("Error while opening STDERR file");
+            exit(-1);
+        }
+        dup2(fd, STDERR_FILENO);
+        close(fd);
     }
 }
 
@@ -127,69 +169,54 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command) {
  */
 int procesar_linea(char *linea) {
 
-    // Process all redirections in the global array
-    procesar_redirecciones(argvv);
-
-    // Check what the previous function processed and change the file descriptors
-    if (filev[0] != NULL) {
-        int fd = open(filev[0], O_RDONLY);
-        if (fd == -1) {
-            perror("Error while opening STDIN file");
-            exit(-1);
-        }
-        dup2(fd, STDIN_FILENO);
-        close(fd);
-    }
-
-    if (filev[1] != NULL) {
-        int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd == -1) {
-            perror("Error while opening STDOUT file");
-            exit(-1);
-        }
-        dup2(fd, STDOUT_FILENO);
-        close(fd);
-    }
-
-    if (filev[2] != NULL) {
-        int fd = open(filev[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd == -1) {
-            perror("Error while opening STDERR file");
-            exit(-1);
-        }
-        dup2(fd, STDERR_FILENO);
-        close(fd);
-    }
-
     // Divide the commands from the line
-    char *comandos[MAX_COMMANDS]; 
-    int num_comandos = tokenizar_linea(linea, "|", comandos, MAX_COMMANDS);
+    char *command_lines[MAX_COMMANDS];
+    int num_comandos = tokenizar_linea(linea, "|", command_lines, MAX_COMMANDS);
 
     // If no commands are found, exit the program
     if (num_comandos == 0) {
         return 0;
     }
 
-    // Generate the pipes for interprocess communitacion between the processes
+    // Generate the pipes for interprocess communication between the processes
     // where the commands are going to be ran
     int array_pipes[num_comandos - 1][2];
     for (int j = 0; j < num_comandos - 1; j++) {
         if (pipe(array_pipes[j]) == -1) {
-            perror("Error while creating pipe");
+            perror("Error while creating pipes");
             exit(-1);
         }
     }
 
     // Look for the background execution delimiter
-    char *pos = strchr(comandos[num_comandos - 1], '&');
+    char *pos = strchr(command_lines[num_comandos - 1], '&');
     if (pos) {
         background = 1;
         *pos = '\0';
     }
 
+    // Define arguments for new process
+    command_t *commands[MAX_COMMANDS] = {0};
+    for (int i = 0; i < num_comandos; i++) {
+        commands[i] -> arg_count = tokenizar_linea(command_lines[i],
+                                    " \t\n",
+                                    commands[i] -> args,
+                                    MAX_ARGS);
+
+        // If no command is found, exit program
+        if (commands[i] -> arg_count == 0) {
+            errno = EPERM;
+            perror("Incorrect format of command");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Process all redirections from the command line
+    procesar_redirecciones(num_comandos, commands);
+
     // Process each command
     for (int i = 0; i < num_comandos; i++) {
-        int pid1 = fork();
+        const int pid1 = fork();
 
         switch (pid1) {
             case -1:
@@ -197,23 +224,13 @@ int procesar_linea(char *linea) {
                 exit(-1);
 
             case 0:
-                // Define arguments for new process
-                char *args[MAX_ARGS];
-                int args_count = tokenizar_linea(comandos[i], " \t\n", args, MAX_ARGS);
-
-                // If no command is found, exit program
-                if (args_count == 0) {
-                    errno = EPERM;
-                    perror("Incorrect format of command");
-                    exit(EXIT_FAILURE);
-                }
-
                 // Move all arguments to global array
-                for (int k = 0; k < args_count; k++) {
-                    argvv[k] = args[k];
+                for (int k = 0; k < commands[i] -> arg_count; k++) {
+                    argvv[k] = commands[i] -> args[k];
                 }
 
-                command_pipes(array_pipes, num_comandos, i);
+                // Redirect all pipes and execute the command
+                command_pipes(array_pipes, num_comandos, i, commands[i] -> stderr_redirection);
                 execvp(argvv[0], argvv);
                 exit(EXIT_SUCCESS);
 
