@@ -81,7 +81,7 @@ int procesar_linea(char *linea) {
     //Check if background is indicated
     if (strchr(comandos[num_comandos - 1], '&')) {
         background = 1;
-        char *pos = strchr(comandos[num_comandos - 1], '&'); 
+        char *pos = strchr(comandos[num_comandos - 1], '&');
         //remove character 
         *pos = '\0';
     }
@@ -91,22 +91,7 @@ int procesar_linea(char *linea) {
         int args_count = tokenizar_linea(comandos[i], " \t\n", argvv, MAX_ARGS);
         procesar_redirecciones(argvv);
 
-        /********* This piece of code prints the command, args, redirections and background. **********/
-        /*********************** REMOVE BEFORE THE SUBMISSION *****************************************/
-        /*********************** IMPLEMENT YOUR CODE FOR PROCESSES MANAGEMENT HERE ********************/
-        /*printf("Comando = %s\n", argvv[0]);
-        for(int arg = 1; arg < MAX_ARGS; arg++)
-            if(argvv[arg] != NULL)
-                printf("Args = %s\n", argvv[arg]); 
-                
-        printf("Background = %d\n", background);
-        if(filev[0] != NULL)
-            printf("Redir [IN] = %s\n", filev[0]);
-        if(filev[1] != NULL)
-            printf("Redir [OUT] = %s\n", filev[1]);
-        if(filev[2] != NULL)
-            printf("Redir [ERR] = %s\n", filev[2]);*/
-        /**********************************************************************************************/
+
     }
 
     return num_comandos;
