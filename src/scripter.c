@@ -89,8 +89,11 @@ void procesar_redirecciones(char *args) {
     }
 }
 
-/*
- * TODO: Comentar esta wea
+/** This function redirects the file descriptors to the pipes' write or read end. Depending on the order
+ * of the command*
+ * pipes_array -- array with all open pipes
+ * num_comandos -- number of commands from current line
+ * command -- index of executing command
  */
 void command_pipes(int pipes_array[][2], int num_comandos, int command) {
     if (command == 0) {
