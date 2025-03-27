@@ -85,8 +85,8 @@ void procesar_redirecciones(char *args[]) {
  * filev -- files for redirections. NULL value means no redirection. 
  * background -- 0 means foreground; 1 background.
  */
-int procesar_linea(char *linea)
-{
+int procesar_linea(char *linea) {
+
     // Divide the commands from the line
     char *comandos[MAX_COMMANDS]; 
     int num_comandos = tokenizar_linea(linea, "|", comandos, MAX_COMMANDS);
@@ -168,10 +168,13 @@ int procesar_linea(char *linea)
                     waitpid(pid1, NULL, 0);
                 }
                 if (i == num_comandos - 1) {
-                    
+                    for (int k = 0; k < num_comandos; k++) {
+                        close(array_pipes[k][0]);
+                        close(array_pipes[k][1]);
+                    }
                 }
             }
-    }
+        }
 
     return num_comandos;
 }
