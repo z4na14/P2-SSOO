@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 /* CONST VARS */
 const int MAX_LINE = 1024;
@@ -18,7 +19,7 @@ char* argvv[MAX_ARGS];
 char* filev[MAX_REDIRECTIONS];
 int background = 0;
 
-void command_pipes(int pipes_array[][2], int num_comandos, int command);
+
 
 /**
  * This function splits a char* line into different tokens based on a given character
@@ -26,7 +27,8 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command);
  */
 int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
     int i = 0;
-    char *token = strtok(linea, delim);
+    char* linea_copy = strdup(linea);
+    char *token = strtok(linea_copy, delim);
 
     if (max_tokens == 0) {
         while (token != NULL) {
@@ -36,7 +38,7 @@ int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
     }
 
     else {
-        while (token != NULL && i < max_tokens) {
+        while (i < max_tokens && token != NULL) {
             tokens[i++] = token;
             token = strtok(NULL, delim);
         }
@@ -54,27 +56,62 @@ int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
  * filev[1] for STDOUT
  * filev[2] for STDERR
  */
-void procesar_redirecciones(char *args[]) {
+void procesar_redirecciones(char *args) {
     //initialization for every command
     filev[0] = NULL;
     filev[1] = NULL;
     filev[2] = NULL;
+
+    // TODO: Cambiar el numero de tokens
+    
+    // Create array where tokens are going to be stored
+    char* tokens[20] = {0};
+    
+    // Divide the line of args into spaces
+    tokenizar_linea(args, " \t\n", tokens, 0);
+    
     //Store the pointer to the filename if needed.
-    //args[i] set to NULL once redirection is processed
-    for (int i = 0; args[i] != NULL; i++) {
-        if (strcmp(args[i], "<") == 0) {
-            filev[0] = args[i+1];
-            args[i] = NULL;
-            args[i + 1] = NULL;
-        } else if (strcmp(args[i], ">") == 0) {
-            filev[1] = args[i+1];
-            args[i] = NULL;
-            args[i + 1] = NULL;
-        } else if (strcmp(args[i], "!>") == 0) {
-            filev[2] = args[i+1];
-            args[i] = NULL; 
-            args[i + 1] = NULL;
+    //tokens[i] set to NULL once redirection is processed
+    for (int i = 0; i < 20; i++) {
+        if (strcmp(tokens[i], "<") == 0) {
+            filev[0] = tokens[i+1];
+            tokens[i] = NULL;
+            tokens[i + 1] = NULL;
+        } else if (strcmp(tokens[i], ">") == 0) {
+            filev[1] = tokens[i+1];
+            tokens[i] = NULL;
+            tokens[i + 1] = NULL;
+        } else if (strcmp(tokens[i], "!>") == 0) {
+            filev[2] = tokens[i+1];
+            tokens[i] = NULL; 
+            tokens[i + 1] = NULL;
         }
+    }
+}
+
+/*
+ * TODO: Comentar esta wea
+ */
+void command_pipes(int pipes_array[][2], int num_comandos, int command) {
+    if (command == 0) {
+        dup2(pipes_array[0][1], STDOUT_FILENO);
+        close(pipes_array[0][0]);
+        close(pipes_array[0][1]);
+    }
+
+    else if (command == num_comandos - 1) {
+        dup2(pipes_array[num_comandos - 1][0], STDIN_FILENO);
+        close(pipes_array[num_comandos - 1][0]);
+        close(pipes_array[num_comandos - 1][1]);
+    }
+
+    else {
+        dup2(pipes_array[command - 1][0], STDIN_FILENO);
+        dup2(pipes_array[command][1], STDOUT_FILENO);
+        close(pipes_array[command - 1][0]);
+        close(pipes_array[command - 1][1]);
+        close(pipes_array[command][0]);
+        close(pipes_array[command][1]);
     }
 }
 
@@ -86,6 +123,40 @@ void procesar_redirecciones(char *args[]) {
  * background -- 0 means foreground; 1 background.
  */
 int procesar_linea(char *linea) {
+
+    // Process all redirections in the global array
+    procesar_redirecciones(argvv);
+
+    // Check what the previous function processed and change the file descriptors
+    if (filev[0] != NULL) {
+        int fd = open(filev[0], O_RDONLY);
+        if (fd == -1) {
+            perror("Error while opening STDIN file");
+            exit(-1);
+        }
+        dup2(fd, STDIN_FILENO);
+        close(fd);
+    }
+
+    if (filev[1] != NULL) {
+        int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd == -1) {
+            perror("Error while opening STDOUT file");
+            exit(-1);
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+    }
+
+    if (filev[2] != NULL) {
+        int fd = open(filev[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd == -1) {
+            perror("Error while opening STDERR file");
+            exit(-1);
+        }
+        dup2(fd, STDERR_FILENO);
+        close(fd);
+    }
 
     // Divide the commands from the line
     char *comandos[MAX_COMMANDS]; 
@@ -116,92 +187,46 @@ int procesar_linea(char *linea) {
     // Process each command
     for (int i = 0; i < num_comandos; i++) {
         int pid1 = fork();
+
         switch (pid1) {
             case -1:
                 perror("Error while fork()");
                 exit(-1);
+
             case 0:
+                // Define arguments for new process
                 char *args[MAX_ARGS];
                 int args_count = tokenizar_linea(comandos[i], " \t\n", args, MAX_ARGS);
 
-                if (args_count == 0) continue;
+                // If no command is found, exit program
+                if (args_count == 0) {
+                    errno = EPERM;
+                    perror("Incorrect format of command");
+                    exit(EXIT_FAILURE);
+                }
 
+                // Move all arguments to global array
                 for (int k = 0; k < args_count; k++) {
                     argvv[k] = args[k];
                 }
-                procesar_redirecciones(argvv);
 
-                if (filev[0] != NULL) {
-                    int fd = open(filev[0], O_RDONLY);
-                    if (fd == -1) {
-                        perror("Error while opening file");
-                        exit(-1);
-                    }
-                    dup2(fd, STDIN_FILENO);
-                    close(fd);
-                }
-
-                if (filev[1] != NULL) {
-                    int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                    if (fd == -1) {
-                        perror("Error while opening file");
-                        exit(-1);
-                    }
-                    dup2(fd, STDOUT_FILENO);
-                    close(fd);
-                }
-
-                if (filev[2] != NULL) {
-                    int fd = open(filev[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                    if (fd == -1) {
-                        perror("Error while opening file");
-                        exit(-1);
-                    }
-                    dup2(fd, STDOUT_FILENO);
-                    close(fd);
-                }
                 command_pipes(array_pipes, num_comandos, i);
                 execvp(argvv[0], argvv);
+                exit(EXIT_SUCCESS);
 
             default:
-                if (background == 1) {
+                if (background == 0) {
                     waitpid(pid1, NULL, 0);
-                }
-                if (i == num_comandos - 1) {
-                    for (int k = 0; k < num_comandos; k++) {
-                        close(array_pipes[k][0]);
-                        close(array_pipes[k][1]);
-                    }
                 }
             }
         }
 
+    for (int k = 0; k < num_comandos; k++) {
+        close(array_pipes[k][0]);
+        close(array_pipes[k][1]);
+    }
+
     return num_comandos;
-}
-
-void command_pipes(int pipes_array[][2], int num_comandos, int command) {
-    if (command == 0) {
-        dup2(pipes_array[0][1], STDOUT_FILENO);
-        close(pipes_array[0][0]);
-        close(pipes_array[0][1]);
-    }
-
-    else if (command == num_comandos - 1) {
-        dup2(pipes_array[num_comandos - 1][0], STDIN_FILENO);
-        close(pipes_array[num_comandos - 1][0]);
-        close(pipes_array[num_comandos - 1][1]);
-    }
-
-    else {
-        dup2(pipes_array[command - 1][0], STDIN_FILENO);
-        dup2(pipes_array[command][1], STDOUT_FILENO);
-        close(pipes_array[command - 1][0]);
-        close(pipes_array[command - 1][1]);
-        close(pipes_array[command][0]);
-        close(pipes_array[command][1]);
-    }
-
-
 }
 
 
@@ -250,7 +275,8 @@ int parse_file(const char filename[], char*** commands_ptr) {
 
     // Check if the script has the header
     if (strcmp((*commands_ptr)[0], "## Script de SSOO") != 0) {
-        fprintf(stderr, "Script doesn't follow convention\n");
+        errno = EINVAL;
+        perror("Script doesn't follow convention");
     }
 
     return num_of_lines;
@@ -260,7 +286,8 @@ int parse_file(const char filename[], char*** commands_ptr) {
 int main(int argc, char *argv[]) {
 
     if (argc != 2) {
-        fprintf(stderr, "Invalid number of arguments");
+        errno = EINVAL;
+        perror("Invalid number of arguments");
         exit(EXIT_FAILURE);
     }
 
@@ -268,7 +295,8 @@ int main(int argc, char *argv[]) {
     char** commands_ptr;
     int num_of_commands = parse_file(argv[1], &commands_ptr);
     if (num_of_commands <= 0) {
-        fprintf(stderr, "Script file is empty\n");
+        errno = EINVAL;
+        perror("Script file is empty");
         exit(EXIT_FAILURE);
     }
 
