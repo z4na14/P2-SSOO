@@ -26,3 +26,4 @@ $(BUILD_DIR)/scripter: $(BUILD_DIR)/scripter.o
 
 clean:
 	rm -rf $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)
