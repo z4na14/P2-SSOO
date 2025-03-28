@@ -102,6 +102,7 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
     }
 }
 
+
 /** This function redirects the file descriptors to the pipes' write or read end. Depending on the order
  * of the command*
  * pipes_array -- array with all open pipes
@@ -123,16 +124,16 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
 
         // Redirect output to the pipe of the following command
+        close(pipes_array[0][0]);
         close(STDOUT_FILENO);
         dup2(pipes_array[0][1], STDOUT_FILENO);
-        close(pipes_array[0][0]);
         close(pipes_array[0][1]);
     }
 
-    else if (command == num_comandos - 1) {
+    if (command == num_comandos - 1) {
         // Redirect output of the last command
         if (filev[1] != NULL) {
-            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0777);
             if (fd == -1) {
                 perror("Error while opening STDOUT file");
                 exit(EXIT_FAILURE);
@@ -143,21 +144,19 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
 
         // Redirect input from the lasts command
+        close(pipes_array[num_comandos - 1][1]);
         close(STDIN_FILENO);
         dup2(pipes_array[num_comandos - 1][0], STDIN_FILENO);
         close(pipes_array[num_comandos - 1][0]);
-        close(pipes_array[num_comandos - 1][1]);
     }
 
-    else {
+    if (command != 0 && command != num_comandos - 1){
         // Redirect input from the previous command and output to the following
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         dup2(pipes_array[command - 1][0], STDIN_FILENO);
         dup2(pipes_array[command][1], STDOUT_FILENO);
         close(pipes_array[command - 1][0]);
-        close(pipes_array[command - 1][1]);
-        close(pipes_array[command][0]);
         close(pipes_array[command][1]);
     }
 
@@ -248,7 +247,7 @@ int procesar_linea(char *linea) {
                 }
 
                 // Redirect all pipes and execute the command
-                //command_pipes(array_pipes, num_comandos, i, commands[i] -> stderr_redirection);
+                command_pipes(array_pipes, num_comandos, i, commands[i] -> stderr_redirection);
                 execvp(argvv[0], argvv);
                 exit(EXIT_SUCCESS);
 
