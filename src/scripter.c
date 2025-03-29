@@ -126,9 +126,7 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
 
         // Redirect output to the pipe of the following command
-        close(pipes_array[0][0]);
         dup2(pipes_array[0][1], STDOUT_FILENO);
-        close(pipes_array[0][1]);
     }
 
     if (command == num_comandos - 1) {
@@ -144,17 +142,13 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
 
         // Redirect input from the lasts command
-        close(pipes_array[num_comandos - 1][1]);
         dup2(pipes_array[num_comandos - 1][0], STDIN_FILENO);
-        close(pipes_array[num_comandos - 1][0]);
     }
 
     if (command != 0 && command != num_comandos - 1){
         // Redirect input from the previous command and output to the following
         dup2(pipes_array[command - 1][0], STDIN_FILENO);
         dup2(pipes_array[command][1], STDOUT_FILENO);
-        close(pipes_array[command - 1][0]);
-        close(pipes_array[command][1]);
     }
 
     if (filev[2] != NULL && stderr_redirection != NULL) {
@@ -165,6 +159,11 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
         dup2(fd, STDERR_FILENO);
         close(fd);
+    }
+
+    for (int i = 0; i < num_comandos - 1; i++) {
+        close(pipes_array[i][0]);
+        close(pipes_array[i][1]);
     }
 }
 
@@ -244,8 +243,12 @@ int procesar_linea(char *linea) {
 
                 // Redirect all pipes and execute the command
                 command_pipes(array_pipes, num_comandos, i, commands[i] -> stderr_redirection);
-                execvp(argvv[0], argvv);
-                exit(EXIT_SUCCESS);
+
+                // If any error happens when executing command, terminate program
+                if (execvp(argvv[0], argvv) < 0) {
+                    perror("Error while executing command");
+                    exit(EXIT_FAILURE);
+                }
 
             default:
                 if (background == 0) {
