@@ -229,6 +229,7 @@ int procesar_linea(char *linea) {
     procesar_redirecciones(num_comandos, commands);
 
     // Process each command
+    int status;
     for (int i = 0; i < num_comandos; i++) {
         const int pid1 = fork();
 
@@ -252,18 +253,22 @@ int procesar_linea(char *linea) {
                     exit(EXIT_FAILURE);
                 }
 
+                // Fallthrough error if not used
+                break;
+
             default:
-                if (background == 0) {
-                    wait(NULL);
+                for (int j = 0; j < num_comandos - 1; j++) {
+                    close(array_pipes[j][0]);
+                    close(array_pipes[j][1]);
                 }
             }
         }
 
-    for (int i = 0; i < num_comandos - 1; i++) {
-        close(array_pipes[i][0]);
-        close(array_pipes[i][1]);
+    if (!background) {
+        for (int i = 0; i < num_comandos; i++) {
+            wait(&status);
+        }
     }
-
     return num_comandos;
 }
 
