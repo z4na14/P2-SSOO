@@ -1,8 +1,5 @@
 ## Script de SSOO
-ls
-grep "hola" < hola
-ls
-ls -a | grep "scripter"
-ls
-echo "pene" | head -n 2
-echo "hola" > pene
+ls &
+ls -a | grep "hola" &
+echo "kasdasdasdasdsujdhsjdkf" | head -c 20 | head -c 15 | head -c 10 &
+echo "hola" > pene &
