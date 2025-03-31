@@ -23,6 +23,7 @@ int background = 0;
 typedef struct {
     char *args[MAX_ARGS];
     int arg_count;
+    int pid;
     char *stderr_redirection;
 } command_t;
 
@@ -238,6 +239,7 @@ int procesar_linea(char *linea) {
     // Process each command
     for (int i = 0; i < num_comandos; i++) {
         const int pid1 = fork();
+        commands[i] -> pid = pid1;
 
         switch (pid1) {
             case -1:
@@ -256,16 +258,18 @@ int procesar_linea(char *linea) {
                 exit(EXIT_SUCCESS);
 
             default:
-                if (background == 0) {
-                    waitpid(pid1, NULL, 0);
-                }
-
                 if (i >= 1) {
                     close(array_pipes[i-1][0]);
                     close(array_pipes[i-1][1]);
                 }
             }
         }
+
+    if (background == 0) {
+        for (int i = 0; i < num_comandos; i++) {
+            waitpid(commands[i] -> pid, NULL, 0);
+        }
+    }
 
     return num_comandos;
 }
