@@ -1,2 +1,6 @@
 ## Script de SSOO
-echo "kasdasdasdasdsujdhsjdkf" | head -c 5
+ls -l
+echo "pene"
+echo "holamundoajsjasj" > pene
+head -c 10 | head -c 5 | head -c 2 < pene
+ls -l | grep mygrep | wc -l
