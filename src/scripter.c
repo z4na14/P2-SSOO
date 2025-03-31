@@ -23,6 +23,7 @@ int background = 0;
 typedef struct {
     char *args[MAX_ARGS];
     int arg_count;
+    int pid;
     char *stderr_redirection;
 } command_t;
 
@@ -30,7 +31,7 @@ typedef struct {
 
 /**
  * This function splits a char* line into different tokens based on a given character
- * @return Number of tokens 
+ * @return Number of tokens
  */
 int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
 
@@ -58,7 +59,7 @@ int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
 
 
 /**
- * This function processes the command line to evaluate if there are redirections. 
+ * This function processes the command line to evaluate if there are redirections.
  * If any redirection is detected, the destination file is indicated in filev[i] array.
  * filev[0] for STDIN
  * filev[1] for STDOUT
@@ -70,7 +71,7 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
     filev[0] = NULL;
     filev[1] = NULL;
     filev[2] = NULL;
-    
+
     for (int i = 0; i < num_commands; i++) {
         for (int j = 0; j < MAX_ARGS; j++) {
             if (commands[i] -> args[j] == NULL) {
@@ -91,7 +92,7 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
                 commands[i] -> arg_count -= 2;
             } else if (strcmp(commands[i] -> args[j], "!>") == 0) {
                 // Add placeholder so NULL checks return false
-                filev[2] = "1";
+                *filev[2] = '1';
                 // For every stderr redirection found, add to the index
                 // of the corresponding command
                 commands[i] -> stderr_redirection = commands[i] -> args[j + 1];
@@ -112,6 +113,7 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
  * command -- index of executing command
  */
 void command_pipes(int pipes_array[][2], int num_comandos, int command, char* stderr_redirection) {
+
     // Close all pipe ends first (child gets its own copies)
     for (int i = 0; i < num_comandos - 1; i++) {
         if (i != command - 1) {  // Not the previous pipe's read end
@@ -122,44 +124,50 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
     }
 
-    // Handle input redirection (only for first command)
-    if (command == 0 && filev[0] != NULL) {
-        int fd = open(filev[0], O_RDONLY);
-        if (fd == -1) {
-            perror("Error while opening STDIN file redirection");
-            exit(EXIT_FAILURE);
+    if (command == 0) {
+        // Redirect input of the first command
+        if (filev[0] != NULL) {
+            int fd = open(filev[0], O_RDONLY);
+            if (fd == -1) {
+                perror("Error while opening STDIN file redirection");
+                exit(EXIT_FAILURE);
+            }
+            dup2(fd, STDIN_FILENO);
+            close(fd);
         }
-        dup2(fd, STDIN_FILENO);
-        close(fd);
+
+        // Redirect output to the pipe of the following command
+        dup2(pipes_array[0][1], STDOUT_FILENO);
+        close(pipes_array[0][1]);
     }
 
-    // Handle output redirection (only for last command)
-    if (command == num_comandos - 1 && filev[1] != NULL) {
-        int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd == -1) {
-            perror("Error while opening STDOUT file");
-            exit(EXIT_FAILURE);
+    if (command == num_comandos - 1) {
+        // Redirect output of the last command
+        if (filev[1] != NULL) {
+            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC);
+            if (fd == -1) {
+                perror("Error while opening STDOUT file");
+                exit(EXIT_FAILURE);
+            }
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
         }
-        dup2(fd, STDOUT_FILENO);
-        close(fd);
+
+        // Redirect input from the lasts command
+        dup2(pipes_array[command - 1][0], STDIN_FILENO);
+        close(pipes_array[command - 1][0]);
     }
 
-    // Connect pipes between commands
-    if (command != 0) {
-        // Connect to previous command's output
-        dup2(pipes_array[command-1][0], STDIN_FILENO);
-        close(pipes_array[command-1][0]);
-    }
-
-    if (command != num_comandos - 1) {
-        // Connect to next command's input
+    if (command != 0 && command != num_comandos - 1){
+        // Redirect input from the previous command and output to the following
+        dup2(pipes_array[command - 1][0], STDIN_FILENO);
         dup2(pipes_array[command][1], STDOUT_FILENO);
+        close(pipes_array[command - 1][0]);
         close(pipes_array[command][1]);
     }
 
-    // Handle stderr redirection (for any command)
-    if (stderr_redirection != NULL) {
-        int fd = open(stderr_redirection, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (filev[2] != NULL && stderr_redirection != NULL) {
+        int fd = open(stderr_redirection, O_WRONLY | O_CREAT | O_TRUNC);
         if (fd == -1) {
             perror("Error while opening STDERR file");
             exit(EXIT_FAILURE);
@@ -171,9 +179,9 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
 
 
 /**
- * This function processes the input command line and returns in global variables: 
- * argvv -- command an args as argv 
- * filev -- files for redirections. NULL value means no redirection. 
+ * This function processes the input command line and returns in global variables:
+ * argvv -- command an args as argv
+ * filev -- files for redirections. NULL value means no redirection.
  * background -- 0 means foreground; 1 background.
  */
 int procesar_linea(char *linea) {
@@ -229,9 +237,9 @@ int procesar_linea(char *linea) {
     procesar_redirecciones(num_comandos, commands);
 
     // Process each command
-    int status;
     for (int i = 0; i < num_comandos; i++) {
         const int pid1 = fork();
+        commands[i] -> pid = pid1;
 
         switch (pid1) {
             case -1:
@@ -246,29 +254,23 @@ int procesar_linea(char *linea) {
 
                 // Redirect all pipes and execute the command
                 command_pipes(array_pipes, num_comandos, i, commands[i] -> stderr_redirection);
-
-                // If any error happens when executing command, terminate program
-                if (execvp(argvv[0], argvv) < 0) {
-                    perror("Error while executing command");
-                    exit(EXIT_FAILURE);
-                }
-
-                // Fallthrough error if not used
-                break;
+                execvp(argvv[0], argvv);
+                exit(EXIT_SUCCESS);
 
             default:
-                for (int j = 0; j < num_comandos - 1; j++) {
-                    close(array_pipes[j][0]);
-                    close(array_pipes[j][1]);
+                if (i >= 1) {
+                    close(array_pipes[i-1][0]);
+                    close(array_pipes[i-1][1]);
                 }
             }
         }
 
-    if (!background) {
+    if (background == 0) {
         for (int i = 0; i < num_comandos; i++) {
-            wait(&status);
+            waitpid(commands[i] -> pid, NULL, 0);
         }
     }
+
     return num_comandos;
 }
 
