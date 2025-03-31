@@ -108,7 +108,7 @@ else
 fi
 
 # Read the file autores.txt line by line
-pattern="^[0-9]+,[A-Za-z]+,[A-Za-z]+$"
+pattern="^[0-9]+,[A-Za-z ]+,[A-Za-z ]+$"
 line_number=0
 all_valid=1
 while IFS= read -r line; do

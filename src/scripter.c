@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <sys/stat.h>
 #include <errno.h>
 
@@ -33,7 +32,7 @@ typedef struct {
  * This function splits a char* line into different tokens based on a given character
  * @return Number of tokens
  */
-int tokenizar_linea(char *linea, char *delim, char *tokens[], int max_tokens) {
+int tokenizar_linea(const char *linea, const char *delim, char *tokens[], const int max_tokens) {
 
     int i = 0;
     char *linea_copy = strdup(linea);
@@ -83,23 +82,18 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
                 commands[i] -> args[j] = NULL;
                 commands[i] -> args[j + 1] = NULL;
                 // Reduce the number of commands after removing redirections
-                commands[i] -> arg_count -= 2;
             } else if (strcmp(commands[i] -> args[j], ">") == 0 && (i == num_commands - 1)) {
                 filev[1] = commands[i] -> args[j + 1];
                 commands[i] -> args[j] = NULL;
                 commands[i] -> args[j + 1] = NULL;
                 // Reduce the number of commands after removing redirections
-                commands[i] -> arg_count -= 2;
             } else if (strcmp(commands[i] -> args[j], "!>") == 0) {
-                // Add placeholder so NULL checks return false
-                *filev[2] = '1';
                 // For every stderr redirection found, add to the index
                 // of the corresponding command
                 commands[i] -> stderr_redirection = commands[i] -> args[j + 1];
                 commands[i] -> args[j] = NULL;
                 commands[i] -> args[j + 1] = NULL;
                 // Reduce the number of commands after removing redirections
-                commands[i] -> arg_count -= 2;
             }
         }
     }
@@ -112,7 +106,7 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
  * num_comandos -- number of commands from current line
  * command -- index of executing command
  */
-void command_pipes(int pipes_array[][2], int num_comandos, int command, char* stderr_redirection) {
+void command_pipes(int pipes_array[][2], const int num_comandos, const int command, const char* stderr_redirection) {
 
     // Close all pipe ends first (child gets its own copies)
     for (int i = 0; i < num_comandos - 1; i++) {
@@ -166,7 +160,7 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         close(pipes_array[command][1]);
     }
 
-    if (filev[2] != NULL && stderr_redirection != NULL) {
+    if (stderr_redirection != NULL) {
         int fd = open(stderr_redirection, O_WRONLY | O_CREAT | O_TRUNC);
         if (fd == -1) {
             perror("Error while opening STDERR file");
@@ -184,7 +178,7 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
  * filev -- files for redirections. NULL value means no redirection.
  * background -- 0 means foreground; 1 background.
  */
-int procesar_linea(char *linea) {
+int procesar_linea(const char *linea) {
 
     // Divide the commands from the line
     char *command_lines[MAX_COMMANDS] = {0};
