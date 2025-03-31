@@ -6,20 +6,20 @@ BUILD_DIR = ./build
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
 
-all: mygrepbld scripterbld
+all: mygrep scripter
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-.PHONY: mygrepbld
-mygrepbld: $(BUILD_DIR)/mygrep
+.PHONY: mygrep
+mygrep: $(BUILD_DIR)/mygrep
 
 $(BUILD_DIR)/mygrep:  $(BUILD_DIR)/mygrep.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-.PHONY: scripterbld
-scripterbld: $(BUILD_DIR)/scripter
+.PHONY: scripter
+scripter: $(BUILD_DIR)/scripter
 
 $(BUILD_DIR)/scripter: $(BUILD_DIR)/scripter.o
 	$(CC) $(CFLAGS) $^ -o $@
