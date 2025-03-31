@@ -313,7 +313,7 @@ int parse_file(const char filename[], char*** commands_ptr) {
     }
 
     // Read contents from file
-    if (read(filefd, filebuff, buffer_size) < 0) {
+    if (read(filefd, filebuff, buffer_size - 1) < 0) {
         perror("Error reading file");
         exit(EXIT_FAILURE);
     }

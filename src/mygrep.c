@@ -46,11 +46,15 @@ void check_contains(const char* search_string) {
         }
 
         if (!found && FILE_BUFF[FILE_POSS] == search_string[0]) {
-            char copied_buff[strlen(search_string) + 1];
-            strncpy(copied_buff, &FILE_BUFF[FILE_POSS], strlen(search_string));
+            const int len = (int) strlen(search_string);
+            if (FILE_POSS + len <= FILE_SIZE) { // Ensure we don't read out of bounds
+                char copied_buff[len + 1];
+                strncpy(copied_buff, &FILE_BUFF[FILE_POSS], len);
+                copied_buff[len] = '\0';
 
-            if (strcmp(copied_buff, search_string) == 0) {
-                found = 1;
+                if (strcmp(copied_buff, search_string) == 0) {
+                    found = 1;
+                }
             }
         }
 
@@ -95,7 +99,7 @@ void parse_file(const char* file_name) {
     }
 
     // Read contents from file
-    if (read(filefd, FILE_BUFF, FILE_SIZE) < 0) {
+    if (read(filefd, FILE_BUFF, FILE_SIZE - 1) < 0) {
         perror("Error reading file");
         exit(EXIT_FAILURE);
     }
