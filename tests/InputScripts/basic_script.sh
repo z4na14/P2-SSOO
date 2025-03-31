@@ -1,4 +1,5 @@
 ## Script de SSOO
-ls -a | grep "scripter"
-echo "pene" | head -n 2
+ls
+echo "pene"
+echo "pene" | head -c 3
 echo "hola" > pene

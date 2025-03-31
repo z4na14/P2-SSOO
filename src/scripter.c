@@ -113,6 +113,16 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
  */
 void command_pipes(int pipes_array[][2], int num_comandos, int command, char* stderr_redirection) {
 
+    // Close all pipe ends first (child gets its own copies)
+    for (int i = 0; i < num_comandos - 1; i++) {
+        if (i != command - 1) {  // Not the previous pipe's read end
+            close(pipes_array[i][0]);
+        }
+        if (i != command) {      // Not the current pipe's write end
+            close(pipes_array[i][1]);
+        }
+    }
+
     if (command == 0) {
         // Redirect input of the first command
         if (filev[0] != NULL) {
@@ -126,7 +136,6 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
 
         // Redirect output to the pipe of the following command
-        close(pipes_array[0][0]);
         dup2(pipes_array[0][1], STDOUT_FILENO);
         close(pipes_array[0][1]);
     }
@@ -144,9 +153,8 @@ void command_pipes(int pipes_array[][2], int num_comandos, int command, char* st
         }
 
         // Redirect input from the lasts command
-        close(pipes_array[num_comandos - 1][1]);
-        dup2(pipes_array[num_comandos - 1][0], STDIN_FILENO);
-        close(pipes_array[num_comandos - 1][0]);
+        dup2(pipes_array[command - 1][0], STDIN_FILENO);
+        close(pipes_array[command - 1][0]);
     }
 
     if (command != 0 && command != num_comandos - 1){
@@ -251,13 +259,13 @@ int procesar_linea(char *linea) {
                 if (background == 0) {
                     waitpid(pid1, NULL, 0);
                 }
+
+                if (i >= 1) {
+                    close(array_pipes[i-1][0]);
+                    close(array_pipes[i-1][1]);
+                }
             }
         }
-
-    for (int i = 0; i < num_comandos - 1; i++) {
-        close(array_pipes[i][0]);
-        close(array_pipes[i][1]);
-    }
 
     return num_comandos;
 }
