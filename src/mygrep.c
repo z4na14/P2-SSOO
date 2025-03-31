@@ -7,25 +7,59 @@
 #include <sys/stat.h>
 
 char *FILE_BUFF;
-unsigned int FILE_SIZE;
+int FILE_SIZE;
 int FILE_POSS;
 
 
 
 /*TODO: Comentar*/
-int check_contains(char* search_string) {
+void check_contains(const char* search_string) {
+
+    // If file is empty, return immediately
+    if (FILE_SIZE == 0) {
+        exit(0);
+    }
 
     // Local variable to store the current line
     int first_char = FILE_POSS;
     int found = 0;
 
     // Endless loop to check along the whole file if the string is present
-    for (;;) {
-        if (FILE_BUFF[FILE_POSS] == '\n' || FILE_BUFF[FILE_POSS] != '\0') {
-            return found;
+    while (FILE_POSS < FILE_SIZE) {
+        if (FILE_BUFF[FILE_POSS] == '\n' || FILE_BUFF[FILE_POSS] == '\0') {
+            FILE_BUFF[FILE_POSS] = '\0';
+            if (found) {
+                printf("%s\n", &FILE_BUFF[first_char]);
+            }
+            FILE_POSS++;
+
+            // Reset local variables and continue with the next line
+            first_char = FILE_POSS;
+            found = 0;
+        }
+
+        if (FILE_BUFF[FILE_POSS] == '\0') {
+            if (found) {
+                printf("%s\n", &FILE_BUFF[first_char]);
+            }
+            return;
+        }
+
+        if (!found && FILE_BUFF[FILE_POSS] == search_string[0]) {
+            char copied_buff[strlen(search_string) + 1];
+            strncpy(copied_buff, &FILE_BUFF[FILE_POSS], strlen(search_string));
+
+            if (strcmp(copied_buff, search_string) == 0) {
+                found = 1;
+            }
+        }
 
         FILE_POSS++;
     }
+
+    errno = ENOTSUP;
+    perror("Error while reading contents");
+    exit(-1);
 }
 
 
@@ -53,7 +87,7 @@ void parse_file(const char* file_name) {
     }
 
     // Allocate buffer dynamically
-    FILE_SIZE = (fd_st.st_size / sizeof(char)) + 1;
+    FILE_SIZE = fd_st.st_size + 1;
     FILE_BUFF = (char*) malloc(FILE_SIZE);
     if (!FILE_BUFF) {
         perror("Malloc failed");
@@ -74,9 +108,12 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
+    // Parse the input file and populate global variables
+    parse_file(argv[1]);
+
     // Go along the whole file, line by line, checking if the string is present.
     // If so, print line in STDOUT
-
+    check_contains(argv[2]);
 
     return 0;
 }

@@ -305,7 +305,7 @@ int parse_file(const char filename[], char*** commands_ptr) {
     }
 
     // Allocate buffer dynamically
-    unsigned int buffer_size = (fd_st.st_size / sizeof(char)) + 1;
+    unsigned int buffer_size = fd_st.st_size + 1;
     char *filebuff = (char*) malloc(buffer_size);
     if (!filebuff) {
         perror("Malloc failed");
