@@ -263,6 +263,7 @@ int procesar_linea(const char *linea) {
             }
         }
 
+    background = 0;
     return num_comandos;
 }
 
