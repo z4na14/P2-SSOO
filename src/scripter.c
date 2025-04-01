@@ -72,28 +72,24 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
     filev[2] = NULL;
 
     for (int i = 0; i < num_commands; i++) {
-        for (int j = 0; j < MAX_ARGS; j++) {
-            if (commands[i] -> args[j] == NULL) {
-                break;
-            }
-
+        for (int j = 0; j < commands[i] -> arg_count; j++) {
             if (strcmp(commands[i] -> args[j], "<") == 0 && (i == num_commands - 1)) {
                 filev[0] = commands[i] -> args[j + 1];
                 commands[i] -> args[j] = NULL;
                 commands[i] -> args[j + 1] = NULL;
-                // Reduce the number of commands after removing redirections
+                j += 1;
             } else if (strcmp(commands[i] -> args[j], ">") == 0 && (i == num_commands - 1)) {
                 filev[1] = commands[i] -> args[j + 1];
                 commands[i] -> args[j] = NULL;
                 commands[i] -> args[j + 1] = NULL;
-                // Reduce the number of commands after removing redirections
+                j += 1;
             } else if (strcmp(commands[i] -> args[j], "!>") == 0) {
                 // For every stderr redirection found, add to the index
                 // of the corresponding command
                 commands[i] -> stderr_redirection = commands[i] -> args[j + 1];
                 commands[i] -> args[j] = NULL;
                 commands[i] -> args[j + 1] = NULL;
-                // Reduce the number of commands after removing redirections
+                j += 1;
             }
         }
     }
@@ -249,21 +245,23 @@ int procesar_linea(const char *linea) {
                 // Redirect all pipes and execute the command
                 command_pipes(array_pipes, num_comandos, i, commands[i] -> stderr_redirection);
                 execvp(argvv[0], argvv);
-                exit(EXIT_SUCCESS);
 
             default:
                 if (i >= 1) {
                     close(array_pipes[i-1][0]);
                     close(array_pipes[i-1][1]);
                 }
+
+                if (!background) {
+                    waitpid(pid1, NULL, 0);
+                }
+
+
+                if (background) {
+                    printf("%d\n", pid1);
+                }
             }
         }
-
-    if (background == 0) {
-        for (int i = 0; i < num_comandos; i++) {
-            waitpid(commands[i] -> pid, NULL, 0);
-        }
-    }
 
     return num_comandos;
 }
