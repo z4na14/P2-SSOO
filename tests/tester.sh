@@ -1,5 +1,3 @@
-#!/bin/bash
-
 CalculateSimilarity() {
     bash_file=$1
     scripter_file=$2
