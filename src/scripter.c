@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <threads.h>
 
 /* CONST VARS */
 #define MAX_LINE 1024
@@ -200,6 +201,17 @@ int procesar_linea(const char *linea) {
     if (pos) {
         background = 1;
         *pos = '\0';
+
+        int bpid = fork();
+
+        if (bpid == -1) {
+            perror("Error while executing background command");
+        }
+
+        else if (bpid > 0) {
+            background = 0;
+            return num_comandos;
+        }
     }
 
     // Define arguments for new process
@@ -252,10 +264,7 @@ int procesar_linea(const char *linea) {
                     close(array_pipes[i-1][1]);
                 }
 
-                if (!background) {
-                    waitpid(pid1, NULL, 0);
-                }
-
+                waitpid(pid1, NULL, 0);
 
                 if (background) {
                     printf("%d\n", pid1);
@@ -263,7 +272,10 @@ int procesar_linea(const char *linea) {
             }
         }
 
-    background = 0;
+    if (background) {
+        exit(0);
+    }
+
     return num_comandos;
 }
 
@@ -345,13 +357,10 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Puta madre, esta wea como la limitamos
-    // TODO: Kill myself
     for (int i = 1; i < num_of_commands; i++) {
         if (strcmp(commands_ptr[i], "") == 0) {
             break;
         }
-
         procesar_linea(commands_ptr[i]);
     }
 
