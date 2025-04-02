@@ -12,13 +12,11 @@ int FILE_POSS;
 
 
 
-/*TODO: Comentar*/
+/* Function that actually reads the contents and prints the lines
+ * of matching strings:
+ * search_string -- string to find inside the file
+ */
 void check_contains(const char* search_string) {
-
-    // If file is empty, return immediately
-    if (FILE_SIZE == 0) {
-        exit(0);
-    }
 
     // Local variable to store the current line
     int first_char = FILE_POSS;
@@ -26,11 +24,14 @@ void check_contains(const char* search_string) {
 
     // Endless loop to check along the whole file if the string is present
     while (FILE_POSS < FILE_SIZE) {
-        if (FILE_BUFF[FILE_POSS] == '\n' || FILE_BUFF[FILE_POSS] == '\0') {
+        if (FILE_BUFF[FILE_POSS] == '\n') {
+            // Change it to end of file, and if it was found, print line
             FILE_BUFF[FILE_POSS] = '\0';
             if (found) {
                 printf("%s\n", &FILE_BUFF[first_char]);
             }
+            // And increase pointer so the algorithm doesn't read the just
+            // changed character
             FILE_POSS++;
 
             // Reset local variables and continue with the next line
@@ -38,6 +39,7 @@ void check_contains(const char* search_string) {
             found = 0;
         }
 
+        // If end of file was found, print line if found and return
         if (FILE_BUFF[FILE_POSS] == '\0') {
             if (found) {
                 printf("%s\n", &FILE_BUFF[first_char]);
@@ -45,13 +47,19 @@ void check_contains(const char* search_string) {
             return;
         }
 
+        // If not found, and the first character of the searched string matches
+        // the one from the file buffer
         if (!found && FILE_BUFF[FILE_POSS] == search_string[0]) {
             const int len = (int) strlen(search_string);
-            if (FILE_POSS + len <= FILE_SIZE) { // Ensure we don't read out of bounds
+            // Ensure we don't read out of bounds
+            if (FILE_POSS + len <= FILE_SIZE) {
+                // Copy from the buffer the length of the
+                // string into another variable
                 char copied_buff[len + 1];
                 strncpy(copied_buff, &FILE_BUFF[FILE_POSS], len);
                 copied_buff[len] = '\0';
 
+                // And if they match, change found to TRUE
                 if (strcmp(copied_buff, search_string) == 0) {
                     found = 1;
                 }
@@ -61,13 +69,17 @@ void check_contains(const char* search_string) {
         FILE_POSS++;
     }
 
+    // If we didn't return inside the loop, something happened
     errno = ENOTSUP;
     perror("Error while reading contents");
     exit(-1);
 }
 
 
-/*TODO: Comentar*/
+/* This function processes the file and saves its contents inside
+ * the global variable:
+ * file_name -- name of the file to process.
+ */
 void parse_file(const char* file_name) {
 
     // Open file
@@ -84,14 +96,13 @@ void parse_file(const char* file_name) {
         exit(EXIT_FAILURE);
     }
 
+    // If no contents inside the file, return immediately without doing anything
     if (fd_st.st_size == 0) {
-        errno = EINVAL;
-        perror("File is empty");
-        exit(EXIT_FAILURE);
+        exit(EXIT_SUCCESS);
     }
 
     // Allocate buffer dynamically
-    FILE_SIZE = fd_st.st_size + 1;
+    FILE_SIZE = (int) fd_st.st_size + 1;
     FILE_BUFF = (char*) malloc(FILE_SIZE);
     if (!FILE_BUFF) {
         perror("Malloc failed");
@@ -107,6 +118,7 @@ void parse_file(const char* file_name) {
 
 
 int main(int argc, char** argv) {
+
     if (argc != 3) {
         printf("Usage: %s <ruta_fichero> <cadena_busqueda>\n", argv[0]);
         exit(EXIT_FAILURE);

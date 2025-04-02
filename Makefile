@@ -9,8 +9,8 @@ ZIP_NAME = ./tests/ssoo_p2_100522240_100522110_100522257.zip
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 
 #############################################################
-#			  PART USED FOR THE DEVELOPMENT WITH			#
-#			  DIFFERENT FILE STRUCTURE TO THE TESTER		#
+#			 PART USED FOR THE DEVELOPMENT WITH			    #
+#			 DIFFERENT FILE STRUCTURE TO THE TESTER		    #
 #############################################################
 all: mygrep scripter
 
@@ -45,7 +45,7 @@ zip:
 	zip -j $(ZIP_NAME) $(SRCS) Makefile autores.txt
 
 #############################################################
-#			    USED TO BUILD THE TESTER FILES				#
+#			   USED TO BUILD THE TESTER FILES               #
 #############################################################
 scripter: scripter.o
 	$(CC) $(FLAGS) $^ -o $@

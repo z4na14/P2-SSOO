@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <threads.h>
 
 /* CONST VARS */
 #define MAX_LINE 1024
@@ -31,6 +30,11 @@ typedef struct {
 
 /**
  * This function splits a char* line into different tokens based on a given character
+ * linea -- line to tokenize
+ * delim -- line delimiter
+ * tokens -- where to store the tokens
+ * max_tokens -- even though we didn't find the NULL part, if we have reached the max, return
+ *
  * @return Number of tokens
  */
 int tokenizar_linea(const char *linea, const char *delim, char *tokens[], const int max_tokens) {
@@ -85,8 +89,6 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
                 commands[i] -> args[j + 1] = NULL;
                 j += 1;
             } else if (strcmp(commands[i] -> args[j], "!>") == 0) {
-                // For every stderr redirection found, add to the index
-                // of the corresponding command
                 commands[i] -> stderr_redirection = commands[i] -> args[j + 1];
                 commands[i] -> args[j] = NULL;
                 commands[i] -> args[j + 1] = NULL;
@@ -171,7 +173,7 @@ void command_pipes(int pipes_array[][2], const int num_comandos, const int comma
 
 /**
  * This function processes the input command line and returns in global variables:
- * argvv -- command an args as argv
+ * argvv -- command an args as argv.
  * filev -- files for redirections. NULL value means no redirection.
  * background -- 0 means foreground; 1 background.
  */
@@ -202,6 +204,7 @@ int procesar_linea(const char *linea) {
         background = 1;
         *pos = '\0';
 
+        // If command needs to be ran on background, fork and return parent process
         int bpid = fork();
 
         if (bpid == -1) {
@@ -220,21 +223,6 @@ int procesar_linea(const char *linea) {
         commands[i] = malloc(sizeof(command_t));
     }
 
-
-    for (int i = 0; i < num_comandos; i++) {
-        commands[i] -> arg_count = tokenizar_linea(command_lines[i],
-                                    " \t\n",
-                                    commands[i] -> args,
-                                    MAX_ARGS);
-
-        // If no command is found, exit program
-        if (commands[i] -> arg_count == 0) {
-            errno = EPERM;
-            perror("Incorrect format of command");
-            exit(EXIT_FAILURE);
-        }
-    }
-
     // Process all redirections from the command line
     procesar_redirecciones(num_comandos, commands);
 
@@ -249,8 +237,21 @@ int procesar_linea(const char *linea) {
                 exit(EXIT_FAILURE);
 
             case 0:
-                // Move all arguments to global array
+                // Move arguments to the corresponding command
                 for (int k = 0; k < commands[i] -> arg_count; k++) {
+                    commands[i] -> arg_count = tokenizar_linea(command_lines[i],
+                            " \t\n",
+                            commands[i] -> args,
+                            MAX_ARGS);
+
+                    // If no command is found, exit program
+                    if (commands[i] -> arg_count == 0) {
+                        errno = EPERM;
+                        perror("Incorrect format of command");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    // Move all arguments to global array
                     argvv[k] = commands[i] -> args[k];
                 }
 
@@ -259,19 +260,25 @@ int procesar_linea(const char *linea) {
                 execvp(argvv[0], argvv);
 
             default:
+                // If we are above the first command, right after executing the second one,
+                // we close the previous pipe
                 if (i >= 1) {
                     close(array_pipes[i-1][0]);
                     close(array_pipes[i-1][1]);
                 }
 
+                // Wait for each command from the pipe to finish
                 waitpid(pid1, NULL, 0);
 
+                // If this command was ran in the background, print PID
                 if (background) {
                     printf("%d\n", pid1);
                 }
             }
         }
 
+    // Do not return to main function if was a background command,
+    // forked at the beginning of the function
     if (background) {
         exit(0);
     }
@@ -303,6 +310,7 @@ int parse_file(const char filename[], char*** commands_ptr) {
         exit(EXIT_FAILURE);
     }
 
+    // If the file is empty, exit the program
     if (fd_st.st_size == 0) {
         errno = EINVAL;
         perror("Script is empty");
@@ -311,7 +319,8 @@ int parse_file(const char filename[], char*** commands_ptr) {
 
     // Allocate buffer dynamically
     unsigned int buffer_size = fd_st.st_size + 1;
-    char *filebuff = (char*) malloc(buffer_size);
+    // Allocate memory for the buffer
+    char *filebuff = malloc(buffer_size);
     if (!filebuff) {
         perror("Malloc failed");
         exit(EXIT_FAILURE);
@@ -323,13 +332,16 @@ int parse_file(const char filename[], char*** commands_ptr) {
         exit(EXIT_FAILURE);
     }
 
+    // Allocate memory to store the lines with the commands
     *commands_ptr = (char**) malloc(buffer_size);
     memset(*commands_ptr, 0, buffer_size);
 
     // Separate lines into elements of the parameter array
     int num_of_lines = tokenizar_linea(filebuff, "\n", *commands_ptr, 0);
+    // Free memory allocated for the file buffer as it won't be used anymore
+    free(filebuff);
 
-    // Check if the script has the header
+    // Check if the script has the required header
     if (strcmp((*commands_ptr)[0], "## Script de SSOO") != 0) {
         errno = EINVAL;
         perror("Script doesn't follow convention");
@@ -351,18 +363,25 @@ int main(int argc, char *argv[]) {
     // Buffer pointer where to store the contents of the file
     char** commands_ptr;
     int num_of_commands = parse_file(argv[1], &commands_ptr);
+    // If no commands are found, raise error and exit program
     if (num_of_commands <= 0) {
         errno = EINVAL;
         perror("Script file is empty");
         exit(EXIT_FAILURE);
     }
 
+    // Execute each line of commands
     for (int i = 1; i < num_of_commands; i++) {
-        if (strcmp(commands_ptr[i], "") == 0) {
+        // If any of the lines is empty, or we've reached the end of the file
+        // before, break loop and return
+        if (strcmp(commands_ptr[i], "") == 0 || commands_ptr[i] == NULL) {
             break;
         }
         procesar_linea(commands_ptr[i]);
     }
+
+    // Free allocated memory in the initial parse_file function
+    free(commands_ptr);
 
     return 0;
 }
