@@ -223,6 +223,21 @@ int procesar_linea(const char *linea) {
         commands[i] = malloc(sizeof(command_t));
     }
 
+    // Tokenize each line and store it in its respective struct
+    for (int i = 0; i < num_comandos; i++) {
+        commands[i] -> arg_count = tokenizar_linea(command_lines[i],
+                                    " \t\n",
+                                    commands[i] -> args,
+                                    MAX_ARGS);
+
+        // If no command is found, exit program
+        if (commands[i] -> arg_count == 0) {
+            errno = EPERM;
+            perror("Incorrect format of command");
+            exit(EXIT_FAILURE);
+        }
+    }
+
     // Process all redirections from the command line
     procesar_redirecciones(num_comandos, commands);
 
@@ -239,18 +254,6 @@ int procesar_linea(const char *linea) {
             case 0:
                 // Move arguments to the corresponding command
                 for (int k = 0; k < commands[i] -> arg_count; k++) {
-                    commands[i] -> arg_count = tokenizar_linea(command_lines[i],
-                            " \t\n",
-                            commands[i] -> args,
-                            MAX_ARGS);
-
-                    // If no command is found, exit program
-                    if (commands[i] -> arg_count == 0) {
-                        errno = EPERM;
-                        perror("Incorrect format of command");
-                        exit(EXIT_FAILURE);
-                    }
-
                     // Move all arguments to global array
                     argvv[k] = commands[i] -> args[k];
                 }
