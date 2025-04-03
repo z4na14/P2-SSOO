@@ -16,7 +16,7 @@
 /* VARS TO BE USED FOR THE STUDENTS */
 char *argvv[MAX_ARGS];
 char *filev[MAX_REDIRECTIONS];
-int background = 0;
+int background = 0; // Check how many lines are ran in background
 
 // Used to store the information of each command inside a line
 typedef struct {
@@ -200,18 +200,17 @@ int procesar_linea(const char *linea) {
     // Look for the background execution delimiter
     char *pos = strchr(command_lines[num_comandos - 1], '&');
     if (pos) {
-        background = 1;
+        // Add background command in count
+        background += 1;
+        // Remove character
         *pos = '\0';
 
         // If command needs to be ran on background, fork and return parent process
         int bpid = fork();
-
         if (bpid == -1) {
             perror("Error while executing background command");
         }
-
         else if (bpid > 0) {
-            background = 0;
             return num_comandos;
         }
     }
@@ -276,7 +275,7 @@ int procesar_linea(const char *linea) {
                 waitpid(pid1, NULL, 0);
 
                 // If this command was ran in the background, print PID
-                if (background) {
+                if (pos) {
                     printf("%d\n", pid1);
                 }
             }
@@ -284,7 +283,7 @@ int procesar_linea(const char *linea) {
 
     // Do not return to main function if was a background command,
     // forked at the beginning of the function
-    if (background) {
+    if (pos) {
         exit(0);
     }
 
@@ -387,6 +386,11 @@ int main(int argc, char *argv[]) {
 
     // Free allocated memory in the initial parse_file function
     free(commands_ptr);
+
+    // If there are any lines ran in the background, check status of all zombie processes
+    for (int i = 0; i < background; i++) {
+        wait(NULL);
+    }
 
     return 0;
 }
