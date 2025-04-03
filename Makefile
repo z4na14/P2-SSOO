@@ -2,6 +2,7 @@ CC=gcc
 FLAGS=-Wno-implicit-function-declaration
 CFLAGS=-I.
 
+DEV_FLAGS=-Wall -Wextra
 SRC_DIR = ./src
 BUILD_DIR = ./build
 ZIP_NAME = ./tests/ssoo_p2_100522240_100522110_100522257.zip
@@ -20,21 +21,21 @@ dev: mygrep_d scripter_d
 mygrep_d: $(BUILD_DIR)/mygrep
 
 $(BUILD_DIR)/mygrep:  $(BUILD_DIR)/mygrep.o
-	$(CC) $(FLAGS) $^ -o $@
+	$(CC) $(DEV_FLAGS) $^ -o $@
 
 $(BUILD_DIR)/mygrep.o: $(SRC_DIR)/mygrep.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(FLAGS) -c $< -o $@ $(CFLAGS)
+	$(CC) $(DEV_FLAGS) -c $< -o $@ $(CFLAGS)
 
 .PHONY: scripter_d
 scripter_d: $(BUILD_DIR)/scripter
 
 $(BUILD_DIR)/scripter: $(BUILD_DIR)/scripter.o
-	$(CC) $(FLAGS) $^ -o $@
+	$(CC) $(DEV_FLAGS) $^ -o $@
 
 $(BUILD_DIR)/scripter.o: $(SRC_DIR)/scripter.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(FLAGS) -c $< -o $@ $(CFLAGS)
+	$(CC) $(DEV_FLAGS) -c $< -o $@ $(CFLAGS)
 
 clean:
 	rm -rf $(BUILD_DIR)

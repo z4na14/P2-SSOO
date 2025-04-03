@@ -137,7 +137,7 @@ void command_pipes(int pipes_array[][2], const int num_comandos, const int comma
     if (command == num_comandos - 1) {
         // Redirect output of the last command
         if (filev[1] != NULL) {
-            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC);
+            int fd = open(filev[1], S_IRUSR|S_IWUSR);
             if (fd == -1) {
                 perror("Error while opening STDOUT file");
                 exit(EXIT_FAILURE);
@@ -160,7 +160,7 @@ void command_pipes(int pipes_array[][2], const int num_comandos, const int comma
     }
 
     if (stderr_redirection != NULL) {
-        int fd = open(stderr_redirection, O_WRONLY | O_CREAT | O_TRUNC);
+        int fd = open(stderr_redirection, S_IRUSR|S_IWUSR);
         if (fd == -1) {
             perror("Error while opening STDERR file");
             exit(EXIT_FAILURE);
@@ -260,7 +260,10 @@ int procesar_linea(const char *linea) {
 
                 // Redirect all pipes and execute the command
                 command_pipes(array_pipes, num_comandos, i, commands[i] -> stderr_redirection);
-                execvp(argvv[0], argvv);
+                if (execvp(argvv[0], argvv) < 0) {
+                    perror("Error while executing command");
+                    exit(EXIT_FAILURE);
+                }
 
             default:
                 // If we are above the first command, right after executing the second one,
