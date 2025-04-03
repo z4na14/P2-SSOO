@@ -120,7 +120,7 @@ void command_pipes(int pipes_array[][2], const int num_comandos, const int comma
     if (command == 0) {
         // Redirect input of the first command
         if (filev[0] != NULL) {
-            int fd = open(filev[0], O_RDONLY);
+            int fd = open(filev[0], O_RDONLY, 0664);
             if (fd == -1) {
                 perror("Error while opening STDIN file redirection");
                 exit(EXIT_FAILURE);
@@ -137,7 +137,7 @@ void command_pipes(int pipes_array[][2], const int num_comandos, const int comma
     if (command == num_comandos - 1) {
         // Redirect output of the last command
         if (filev[1] != NULL) {
-            int fd = open(filev[1], S_IRUSR|S_IWUSR);
+            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0664);
             if (fd == -1) {
                 perror("Error while opening STDOUT file");
                 exit(EXIT_FAILURE);
@@ -160,7 +160,7 @@ void command_pipes(int pipes_array[][2], const int num_comandos, const int comma
     }
 
     if (stderr_redirection != NULL) {
-        int fd = open(stderr_redirection, S_IRUSR|S_IWUSR);
+        int fd = open(stderr_redirection, O_APPEND | O_CREAT | O_WRONLY, 0664);
         if (fd == -1) {
             perror("Error while opening STDERR file");
             exit(EXIT_FAILURE);
@@ -304,7 +304,7 @@ int parse_file(const char filename[], char*** commands_ptr) {
 
     // Open file
     int filefd;
-    if ((filefd = open(filename, O_RDWR)) < 0) {
+    if ((filefd = open(filename, O_RDWR, 0664)) < 0) {
         perror("Error opening scripting file");
         exit(EXIT_FAILURE);
     }
