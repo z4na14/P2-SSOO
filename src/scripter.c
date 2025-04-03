@@ -106,7 +106,6 @@ void procesar_redirecciones(int num_commands, command_t **commands) {
  * command -- index of executing command
  */
 void command_pipes(int pipes_array[][2], const int num_comandos, const int command, const char* stderr_redirection) {
-
     // Close all pipe ends first (child gets its own copies)
     for (int i = 0; i < num_comandos - 1; i++) {
         if (i != command - 1) {  // Not the previous pipe's read end
@@ -117,48 +116,48 @@ void command_pipes(int pipes_array[][2], const int num_comandos, const int comma
         }
     }
 
-    if (command == 0) {
-        // Redirect input of the first command
-        if (filev[0] != NULL) {
-            int fd = open(filev[0], O_RDONLY, 0664);
-            if (fd == -1) {
-                perror("Error while opening STDIN file redirection");
-                exit(EXIT_FAILURE);
-            }
-            dup2(fd, STDIN_FILENO);
-            close(fd);
+    // Handle input redirection for the first command (from file)
+    if (command == 0 && filev[0] != NULL) {
+        int fd = open(filev[0], O_RDONLY, 0664);
+        if (fd == -1) {
+            perror("Error while opening STDIN file redirection");
+            exit(EXIT_FAILURE);
         }
-
-        // Redirect output to the pipe of the following command
-        dup2(pipes_array[0][1], STDOUT_FILENO);
-        close(pipes_array[0][1]);
+        dup2(fd, STDIN_FILENO);
+        close(fd);
     }
 
-    if (command == num_comandos - 1) {
-        // Redirect output of the last command
-        if (filev[1] != NULL) {
-            int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0664);
-            if (fd == -1) {
-                perror("Error while opening STDOUT file");
-                exit(EXIT_FAILURE);
-            }
-            dup2(fd, STDOUT_FILENO);
-            close(fd);
+    // Handle output redirection for the last command (to file)
+    if (command == num_comandos - 1 && filev[1] != NULL) {
+        int fd = open(filev[1], O_WRONLY | O_CREAT | O_TRUNC, 0664);
+        if (fd == -1) {
+            perror("Error while opening STDOUT file");
+            exit(EXIT_FAILURE);
         }
-
-        // Redirect input from the lasts command
-        dup2(pipes_array[command - 1][0], STDIN_FILENO);
-        close(pipes_array[command - 1][0]);
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
     }
 
-    if (command != 0 && command != num_comandos - 1){
-        // Redirect input from the previous command and output to the following
-        dup2(pipes_array[command - 1][0], STDIN_FILENO);
-        dup2(pipes_array[command][1], STDOUT_FILENO);
-        close(pipes_array[command - 1][0]);
-        close(pipes_array[command][1]);
+    // Only handle pipes if there are multiple commands
+    if (num_comandos > 1) {
+        if (command == 0) {
+            // First command: redirect stdout to pipe[0]
+            dup2(pipes_array[0][1], STDOUT_FILENO);
+            close(pipes_array[0][1]);
+        } else if (command == num_comandos - 1) {
+            // Last command: redirect stdin from previous pipe
+            dup2(pipes_array[command - 1][0], STDIN_FILENO);
+            close(pipes_array[command - 1][0]);
+        } else {
+            // Middle command: redirect stdin from previous pipe and stdout to next
+            dup2(pipes_array[command - 1][0], STDIN_FILENO);
+            dup2(pipes_array[command][1], STDOUT_FILENO);
+            close(pipes_array[command - 1][0]);
+            close(pipes_array[command][1]);
+        }
     }
 
+    // Handle stderr redirection
     if (stderr_redirection != NULL) {
         int fd = open(stderr_redirection, O_APPEND | O_CREAT | O_WRONLY, 0664);
         if (fd == -1) {
